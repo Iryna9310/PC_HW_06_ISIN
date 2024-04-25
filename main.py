@@ -1,71 +1,74 @@
-import psycopg2
+import sqlite3
 from faker import Faker
 import random
 from datetime import datetime, timedelta
 
 # Підключення до бази даних
-conn = psycopg2.connect(
-    dbname="your_db_name",
-    user="your_username",
-    password="your_password",
-    host="your_host",
-    port="your_port"
-)
-cur = conn.cursor()
+conn = sqlite3.connect('university.db')
+c = conn.cursor()
 
+# Створення таблиць
+c.execute('''CREATE TABLE students (
+            student_id INTEGER PRIMARY KEY,
+            name TEXT,
+            group_id INTEGER)''')
+
+c.execute('''CREATE TABLE groups (
+            group_id INTEGER PRIMARY KEY,
+            name TEXT)''')
+
+c.execute('''CREATE TABLE teachers (
+            teacher_id INTEGER PRIMARY KEY,
+            name TEXT)''')
+
+c.execute('''CREATE TABLE subjects (
+            subject_id INTEGER PRIMARY KEY,
+            name TEXT,
+            teacher_id INTEGER)''')
+
+c.execute('''CREATE TABLE grades (
+            grade_id INTEGER PRIMARY KEY,
+            student_id INTEGER,
+            subject_id INTEGER,
+            grade INTEGER,
+            date_received TEXT)''')
+
+# Вставка випадкових даних за допомогою Faker
 fake = Faker()
 
-# Функція для генерації випадкових даних для студентів
-def generate_students(num_students):
-    groups = [1, 2, 3]  # Припустимо, у нас є 3 групи
-    for _ in range(num_students):
-        full_name = fake.name()
-        group_id = random.choice(groups)
-        cur.execute("INSERT INTO Students (full_name, group_id) VALUES (%s, %s)", (full_name, group_id))
+# Додавання груп
+groups = ['Group A', 'Group B', 'Group C']
+for group_name in groups:
+    c.execute("INSERT INTO groups (name) VALUES (?)", (group_name,))
     conn.commit()
 
-# Функція для генерації випадкових даних для груп
-def generate_groups():
-    groups = ["Group A", "Group B", "Group C"]
-    for group_name in groups:
-        cur.execute("INSERT INTO Groups (group_name) VALUES (%s)", (group_name,))
+# Додавання викладачів
+teachers = [fake.name() for _ in range(5)]
+for teacher_name in teachers:
+    c.execute("INSERT INTO teachers (name) VALUES (?)", (teacher_name,))
     conn.commit()
 
-# Функція для генерації випадкових даних для викладачів
-def generate_professors(num_professors):
-    for _ in range(num_professors):
-        full_name = fake.name()
-        cur.execute("INSERT INTO Professors (full_name) VALUES (%s)", (full_name,))
+# Додавання студентів
+for _ in range(30):
+    student_name = fake.name()
+    group_id = random.randint(1, 3)  # Випадкове призначення до групи
+    c.execute("INSERT INTO students (name, group_id) VALUES (?, ?)", (student_name, group_id))
     conn.commit()
 
-# Функція для генерації випадкових даних для предметів
-def generate_subjects(num_subjects):
-    for _ in range(num_subjects):
-        subject_name = fake.job()
-        professor_id = random.randint(1, 3)  # Припустимо, у нас є 3 викладачі
-        cur.execute("INSERT INTO Subjects (subject_name, professor_id) VALUES (%s, %s)", (subject_name, professor_id))
+# Додавання предметів
+subjects = [('Mathematics', 1), ('Physics', 2), ('Biology', 3), ('Chemistry', 4), ('History', 5)]
+for subject in subjects:
+    c.execute("INSERT INTO subjects (name, teacher_id) VALUES (?, ?)", subject)
     conn.commit()
 
-# Функція для генерації випадкових даних для оцінок
-def generate_grades(num_grades):
-    students = [i for i in range(1, 51)]  # Припустимо, у нас є 50 студентів
-    subjects = [i for i in range(1, 11)]  # Припустимо, у нас є 10 предметів
-    for _ in range(num_grades):
-        student_id = random.choice(students)
-        subject_id = random.choice(subjects)
-        grade = round(random.uniform(2, 5), 2)  # Оцінки від 2 до 5
-        date_received = fake.date_between(start_date='-1y', end_date='today')
-        cur.execute("INSERT INTO Grades (student_id, subject_id, grade, date_received) VALUES (%s, %s, %s, %s)",
-                    (student_id, subject_id, grade, date_received))
-    conn.commit()
+# Додавання оцінок для студентів
+for student_id in range(1, 31):
+    for subject_id in range(1, 6):
+        grade = random.randint(60, 100)  # Випадкові оцінки
+        date_received = fake.date_between(start_date='-1y', end_date='today').strftime('%Y-%m-%d')
+        c.execute("INSERT INTO grades (student_id, subject_id, grade, date_received) VALUES (?, ?, ?, ?)",
+                  (student_id, subject_id, grade, date_received))
+        conn.commit()
 
-# Створення тестових даних
-generate_groups()
-generate_professors(3)
-generate_subjects(10)
-generate_students(50)
-generate_grades(1000)
-
-# Закриття з'єднання
-cur.close()
+# Закриваємо з'єднання з базою даних
 conn.close()
